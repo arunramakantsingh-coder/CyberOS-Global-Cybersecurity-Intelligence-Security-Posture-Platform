@@ -1,12 +1,12 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import json
 import os
 import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="CyberOS Control Plane", version="0.2.0-m0.2")
+app = FastAPI(title="CyberOS Control Plane", version="0.3.0-m1.1")
 DB = os.environ.get("DATABASE_URL", "postgresql://cyberos:cyberos_dev_only@localhost:5433/cyberos")
 
 app.add_middleware(
@@ -36,7 +36,10 @@ def ensure_demo_control_plane():
     with psycopg.connect(DB, connect_timeout=3) as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM tenants WHERE slug='cyberos-demo'")
-            tenant_id = cur.fetchone()[0]
+            tenant_row = cur.fetchone()
+            if not tenant_row:
+                raise RuntimeError("cyberos-demo tenant is not initialized")
+            tenant_id = tenant_row[0]
             cur.execute("""
                 INSERT INTO identities (tenant_id,email,display_name,role)
                 VALUES (%s,'operator@demo.cyberos.local','Demo Security Operator','security_operator')
@@ -74,7 +77,7 @@ def startup():
 
 @app.get("/")
 def root():
-    return {"product": "CyberOS", "service": "control-plane", "milestone": "M0.2", "status": "online"}
+    return {"product": "CyberOS", "service": "control-plane", "milestone": "M1.1", "status": "online"}
 
 @app.get("/health")
 def health():
@@ -90,11 +93,54 @@ def health():
 def platform():
     return {
         "name": "CyberOS",
-        "version": "0.2.0-m0.2",
+        "version": "0.3.0-m1.1",
+        "milestone": "M1.1 Platform Kernel",
         "modules": ["Threat Intelligence", "Attack Surface", "Vulnerability", "Security Posture", "Web Security", "Network & Hardening", "Compliance", "AI", "Reporting"],
         "execution": "policy-controlled",
         "api_port": 8000,
     }
+
+@app.get("/api/v1/context")
+def context():
+    tenant_id, actor_id, auth_id = ensure_demo_control_plane()
+    tenant = db_fetch("SELECT id,name,slug,industry,region,subscription_tier,status,created_at FROM tenants WHERE id=%s", (tenant_id,))[0]
+    identity = db_fetch("SELECT id,email,display_name,role,status,created_at FROM identities WHERE id=%s AND tenant_id=%s", (actor_id, tenant_id))[0]
+    return {
+        "tenant": {"id": str(tenant[0]), "name": tenant[1], "slug": tenant[2], "industry": tenant[3], "region": tenant[4], "subscription_tier": tenant[5], "status": tenant[6], "created_at": tenant[7].isoformat()},
+        "identity": {"id": str(identity[0]), "email": identity[1], "display_name": identity[2], "role": identity[3], "status": identity[4], "created_at": identity[5].isoformat()},
+        "authorization": {"id": auth_id, "mode": "synthetic-only", "status": "active"},
+        "isolation": "tenant-scoped",
+    }
+
+@app.get("/api/v1/audit")
+def audit(limit: int = Query(default=25, ge=1, le=100)):
+    tenant_id, _, _ = ensure_demo_control_plane()
+    rows = db_fetch("""
+        SELECT ae.id, ae.event_type, ae.resource_type, ae.resource_id, ae.decision,
+               ae.metadata, ae.created_at, i.display_name
+        FROM audit_events ae
+        LEFT JOIN identities i ON i.id=ae.actor_id AND i.tenant_id=ae.tenant_id
+        WHERE ae.tenant_id=%s
+        ORDER BY ae.created_at DESC
+        LIMIT %s
+    """, (tenant_id, limit))
+    return [{
+        "id": str(r[0]), "event_type": r[1], "resource_type": r[2],
+        "resource_id": str(r[3]) if r[3] else None, "decision": r[4],
+        "metadata": r[5], "created_at": r[6].isoformat(), "actor": r[7]
+    } for r in rows]
+
+@app.get("/api/v1/tenants/current")
+def current_tenant():
+    tenant_id, _, _ = ensure_demo_control_plane()
+    row = db_fetch("SELECT id,name,slug,industry,region,subscription_tier,status,created_at FROM tenants WHERE id=%s", (tenant_id,))[0]
+    return {"id": str(row[0]), "name": row[1], "slug": row[2], "industry": row[3], "region": row[4], "subscription_tier": row[5], "status": row[6], "created_at": row[7].isoformat()}
+
+@app.get("/api/v1/identity/me")
+def current_identity():
+    _, actor_id, _ = ensure_demo_control_plane()
+    row = db_fetch("SELECT id,email,display_name,role,status,created_at FROM identities WHERE id=%s", (actor_id,))[0]
+    return {"id": str(row[0]), "email": row[1], "display_name": row[2], "role": row[3], "status": row[4], "created_at": row[5].isoformat()}
 
 @app.get("/api/v1/demo/summary")
 def demo_summary():
