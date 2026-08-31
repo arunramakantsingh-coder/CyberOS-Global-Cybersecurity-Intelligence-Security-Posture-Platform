@@ -4,9 +4,11 @@
 
 ## Current Position
 
-M0 foundation and M1.1 platform-kernel work are established. The next authorized implementation stage is **M2 — Public Website + Demo** on branch `foundation/m2-product-platform`.
+M0 foundation and M1.1 platform-kernel work are established. M2 public product experience is implemented and the approved public website is now frozen.
 
-The complete product vision is defined in [`00_CYBEROS_PRODUCT_VISION.md`](00_CYBEROS_PRODUCT_VISION.md).
+The next implementation focus is **M3 — Asset Intelligence + CyberOS Security Overview**, using isolated module development boundaries.
+
+The complete capability expansion is defined in [`13_CYBEROS_COMPLETE_CAPABILITY_EXPANSION.md`](13_CYBEROS_COMPLETE_CAPABILITY_EXPANSION.md).
 
 ## M0 — Repository & Governance Foundation
 
@@ -52,13 +54,11 @@ Established foundation includes:
 - policy-gated execution model; and
 - command-center exposure of platform-kernel state.
 
-**Current baseline:** `f212233` — `feat: expose M1.1 platform kernel in command center`
-
 **M1 full exit gate:** authenticated multi-tenant application with no cross-tenant data access in automated tests. Remaining identity/authentication depth is retained as a platform workstream and must not be bypassed by the public/demo experience.
 
 ## M2 — Public Website + Demo
 
-### M2.1 — Public Product Experience
+### M2.1 — Public Product Experience — FROZEN
 
 - Marketing website shell
 - Product positioning
@@ -71,6 +71,14 @@ Established foundation includes:
 - Pricing and packaging
 - Contact/sales entry points
 - Sign-in/sign-up entry points
+- Fixed top navigation
+- Responsive layout
+- Vertical section flow
+- Horizontal overflow protection
+
+**Freeze baseline:** `81da2a1cface98479f6e92c8afea8830619ca618`
+
+**Recovery snapshot:** `release/m2-public-website-frozen`
 
 ### M2.2 — Demo World
 
@@ -109,46 +117,108 @@ Established foundation includes:
 
 **M2 exit gate:** public experience and safe demo operate separately from production security execution, while consuming the same platform primitives for tenant, entitlement and product context.
 
-## M3 — Asset Intelligence
+## M3 — Asset Intelligence + Security Overview
 
-- Organizations
-- Domains
-- IPs
+### M3.1 — Organization / Asset Graph
+
+- Organizations and business units
+- Domains and subdomains
+- IPs and networks
 - Applications
 - APIs
-- Hosts
-- Cloud resources
+- Hosts/servers/endpoints
+- Databases
+- Cloud accounts/resources
+- Containers/Kubernetes
 - Network devices
+- IoT/OT asset model
+- Asset ownership and criticality
+- Asset provenance
 - Asset relationships
-- External attack-surface inventory
 
-**Exit gate:** normalized asset inventory with provenance.
+### M3.2 — External Exposure Intelligence
+
+- Authorized domain discovery
+- DNS intelligence
+- Subdomain inventory
+- IP/service inventory
+- Technology fingerprinting
+- TLS/security configuration observations
+- Application/API exposure
+- Internet exposure score
+
+### M3.3 — Command Center Intelligence
+
+- Organization security overview
+- Asset distribution statistics
+- Application/API coverage
+- Exposure summary
+- Security posture summary
+- Finding summary
+- Risk trend foundations
+- Time-series analytics foundations
+- Geographic/global security map foundations
+- Cross-module drill-down contracts
+
+**M3 exit gate:** normalized, provenance-aware asset graph and a real command-center overview driven by backend data rather than one generic placeholder page.
 
 ## M4 — Threat & Vulnerability Intelligence
 
-- CVE ingestion
-- Vulnerability metadata
+- CVE/CWE/CVSS ingestion
+- Known exploited vulnerability intelligence
+- Vendor advisories
 - Exploitability/activity signals
 - Threat intelligence ingestion
 - IOC normalization
 - Threat actor/campaign model
+- Malware/ransomware intelligence
+- Geopolitical cyber intelligence
 - Asset-to-vulnerability correlation
+- Threat-to-exposure correlation
 - Risk scoring v1
+- Vulnerability trends
+- Remediation prioritization
 
-**Exit gate:** reproducible vulnerability prioritization backed by evidence.
+**Exit gate:** reproducible vulnerability and threat prioritization backed by evidence.
 
 ## M5 — Security Assessment Engines
 
-- Network assessment adapters
+### Web / Application / API
+
 - Web assessment adapters
 - API assessment
-- TLS assessment
-- Configuration assessment
+- OWASP-aligned testing
+- Authentication/session assessment
+- Injection detection, including authorized SQL injection testing
+- TLS/security headers
+- Dependency intelligence
+- Authenticated scanning
+
+### Network / Infrastructure
+
+- Network assessment adapters
+- Internal infrastructure assessment
+- Network architecture assessment
+- Segmentation assessment
 - Server posture
-- Cloud posture
-- Container posture
+- Endpoint posture
+- Firewall/router/switch assessment
+
+### Cloud / Container
+
+- CSPM
+- Cloud identity posture
+- Cloud configuration assessment
+- Container assessment
+- Kubernetes/KSPM assessment
+- IaC security
+
+### Finding / Evidence
+
 - Finding normalization
 - Evidence collection
+- Evidence provenance
+- Assessment history
 
 **Exit gate:** controlled jobs produce normalized, auditable findings.
 
@@ -163,6 +233,8 @@ Established foundation includes:
 - Health telemetry
 - Local kill switch
 - Connector audit
+- Customer LAN/DC connectivity
+- Hybrid connectivity
 
 **Exit gate:** authorized internal assessment works without requiring public inbound management exposure.
 
@@ -174,23 +246,33 @@ Established foundation includes:
 - Router/switch posture
 - Database posture
 - Kubernetes posture
+- Cloud baseline posture
+- Identity baseline posture
 - Baseline policies
-- Security architecture questionnaires
+- Configuration drift
+- Security architecture assessments
+- Secure network architecture recommendations
 - Custom policies
 - Remediation recommendations
 
 **Exit gate:** assessment-to-remediation workflow is complete and retestable.
 
-## M8 — Compliance Readiness
+## M8 — Compliance / GRC / Regulatory Intelligence
 
 - Framework registry
 - Control registry
+- Versioned requirements
 - Evidence mapping
 - Gap analysis
+- Control self-assessment
+- Policy management
 - Risk treatment
+- Issue lifecycle
 - Assessment workflow
 - Evidence packages
-- Reporting
+- Compliance reporting
+- Regulatory change tracking
+- Privacy/security regulation mapping
 
 Initial frameworks:
 
@@ -202,7 +284,7 @@ Initial frameworks:
 
 **Exit gate:** technical findings and evidence can be mapped to versioned controls without claiming formal certification.
 
-## M9 — Authorized Penetration Testing
+## M9 — Authorized Security Testing / BAS
 
 - Engagement management
 - Rules of engagement
@@ -210,6 +292,10 @@ Initial frameworks:
 - Testing windows
 - Tool permissions
 - Execution controls
+- Controlled penetration testing
+- Benign breach-and-attack simulation
+- MITRE ATT&CK-aligned validation
+- Detection/response validation
 - Evidence chain
 - Finding validation
 - Retest
@@ -225,58 +311,136 @@ Initial frameworks:
 - Cyber knowledge base
 - Threat analyst
 - Vulnerability analyst
+- Application-security analyst
+- Cloud-security analyst
 - Compliance analyst
 - Security architect
+- Incident investigator
+- Remediation advisor
 - Report generator
 - AI audit trail
 - Human review
 
 **Exit gate:** AI outputs are evidence-linked and AI cannot bypass security controls.
 
-## M11 — Enterprise Platform
+## M11 — Security Operations: SIEM / SOAR / Incident Response
+
+- Real-time log/event ingestion
+- Event normalization
+- Correlation
+- Detection/alert model
+- Incident lifecycle
+- Investigation workspace
+- Timeline and evidence
+- Forensic evidence integration
+- SOAR playbooks
+- Approval-gated response
+- Endpoint/network containment integrations
+- SOC dashboards
+
+## M12 — Identity, PAM & Zero Trust
 
 - SSO/OIDC/SAML
-- Advanced RBAC/ABAC
-- Enterprise audit
-- SIEM integration
-- SOAR integration
-- Ticketing integrations
-- Data residency
-- High availability
-- Private deployment
-- Customer-managed keys where supported
+- Adaptive authentication
+- MFA
+- FIDO2/WebAuthn
+- PAM integrations
+- Privileged account monitoring
+- Device/user trust context
+- Continuous authorization
+- Least-privilege analysis
+- Zero-trust posture
 
-## M12 — CyberOS Security Operating Platform
+## M13 — DevSecOps, Supply Chain & Data Security
 
-- Minimal hardened base image
-- Secure build pipeline
-- Signed releases
-- SBOM
-- Tool runtime manager
-- Sandboxed execution
-- CyberOS appliance
-- Cloud worker image
-- Private node
+### DevSecOps
 
-## M13 — Advanced Intelligence
+- SAST/SCA integrations
+- Dependency intelligence
+- Secret detection integrations
+- CI/CD security gates
+- IaC security
+- SBOM generation/ingestion
+- Artifact provenance/signing
+
+### Third-Party Risk
+
+- Vendor inventory
+- Vendor security questionnaires
+- External security signals
+- Vendor risk scoring
+- Cyber-insurance evidence support
+
+### Data Security
+
+- Sensitive-data discovery
+- PII/PHI classification
+- Data-flow visibility
+- DLP integrations
+- Encryption posture
+- Key-management posture
+- Data access governance
+
+## M14 — IoT / OT / ICS + Specialized Security
+
+- IoT asset discovery
+- ICS/SCADA/PLC inventory
+- OT segmentation assessment
+- Protocol-aware monitoring integrations
+- Industrial asset criticality
+- Safe non-disruptive assessment modes
+- OT evidence and reporting
+
+## M15 — Threat Sharing / VDP / Ecosystem
+
+- STIX/TAXII ingestion/export
+- ISAC integration where authorized
+- Anonymous/aggregated intelligence exchange where lawful
+- Vulnerability disclosure portal
+- Researcher workflow
+- Bug-bounty integrations
+- Marketplace of vetted security integrations
+- Partner/MSSP delegated administration
+- Public APIs
+- Webhooks
+- Event-driven integrations
+
+## M16 — Advanced Analytics / Digital Twin
 
 - Security digital twin
-- Attack-path risk modeling
-- Threat-to-exposure correlation
-- Continuous control monitoring
-- Predictive risk indicators
-- Industry intelligence
-- Global security trends
+- Attack-path modeling
+- Blast-radius analysis
+- Predictive risk
+- What-if remediation simulation
+- Peer benchmarking using privacy-preserving aggregation
+- Control effectiveness analytics
+- Global cyber trend analytics
+- Geopolitical risk correlation
 
-## M14 — Restricted / Government / Offline
+## M17 — Enterprise Resilience & Deployment
 
-- Private deployment
-- Restricted networks
-- Offline intelligence import
-- Air-gapped operating model
-- Dedicated key management
-- Enhanced audit
-- Controlled update packages
+- Multi-region architecture
+- Active/active or equivalent HA strategy
+- Backup/restore
+- RTO/RPO controls
+- Data residency
+- Customer-managed keys where supported
+- Private cloud
+- On-premises deployment
+- Government edition
+- Restricted deployment
+- Offline/air-gapped operating model
+
+## M18 — Personalization & Sustainability
+
+- Role-based dashboards
+- Custom widgets
+- Saved views
+- Personalized alert thresholds
+- Guided onboarding
+- Industry-specific experiences
+- Carbon-footprint reporting
+- Infrastructure/cloud efficiency recommendations
 
 ## Release Discipline
 
@@ -291,3 +455,21 @@ No milestone is considered complete because code exists. Each milestone requires
 7. Auditability
 8. Rollback/recovery consideration
 9. Explicit exit-gate approval
+10. Regression verification of frozen surfaces
+
+## Module Isolation Rule
+
+The public M2 website is frozen. Internal work must be module-scoped.
+
+A module change may modify its own page/components, data contracts and directly required backend services. It must not redesign unrelated modules or the global public website.
+
+Before acceptance, verify:
+
+- Command Center
+- Organization
+- Operations
+- affected module
+- public website
+- responsive layout
+- Git diff scope
+- tenant/authorization boundaries
