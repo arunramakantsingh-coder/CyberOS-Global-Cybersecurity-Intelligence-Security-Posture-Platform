@@ -2,6 +2,12 @@
 
 **Roadmap principle:** architecture and security boundaries first; production active security execution later.
 
+## Current Position
+
+M0 foundation and M1.1 platform-kernel work are established. The next authorized implementation stage is **M2 — Public Website + Demo** on branch `foundation/m2-product-platform`.
+
+The complete product vision is defined in [`00_CYBEROS_PRODUCT_VISION.md`](00_CYBEROS_PRODUCT_VISION.md).
+
 ## M0 — Repository & Governance Foundation
 
 - Master specification
@@ -34,21 +40,74 @@
 - Report model
 - Basic observability
 
-**Exit gate:** authenticated multi-tenant application with no cross-tenant data access in automated tests.
+### M1.1 — Platform Context and Audit Kernel
+
+Established foundation includes:
+
+- organization/tenant context;
+- operator context;
+- authorization model foundation;
+- audit/event model foundation;
+- controlled operations lifecycle;
+- policy-gated execution model; and
+- command-center exposure of platform-kernel state.
+
+**Current baseline:** `f212233` — `feat: expose M1.1 platform kernel in command center`
+
+**M1 full exit gate:** authenticated multi-tenant application with no cross-tenant data access in automated tests. Remaining identity/authentication depth is retained as a platform workstream and must not be bypassed by the public/demo experience.
 
 ## M2 — Public Website + Demo
 
-- Marketing website
-- Product/module catalogue
-- Industry pages
-- Pricing pages
-- Demo tenant
-- Demo dashboard
-- Sign-up/sign-in
-- Commercial funnel
-- Demo isolation controls
+### M2.1 — Public Product Experience
 
-**Exit gate:** public experience and safe demo operate separately from production security execution.
+- Marketing website shell
+- Product positioning
+- Platform overview
+- Module catalogue
+- Industry solutions
+- Compliance overview
+- Assessment overview
+- Trust/security information
+- Pricing and packaging
+- Contact/sales entry points
+- Sign-in/sign-up entry points
+
+### M2.2 — Demo World
+
+- Synthetic organization
+- Synthetic assets/findings/evidence
+- Demo dashboard
+- Exposure and vulnerability views
+- Threat intelligence views
+- Security posture views
+- Compliance views
+- Remediation views
+- Reports
+- Safe demo boundaries
+- No arbitrary target entry
+- No outbound offensive execution
+- Rate limiting/abuse controls
+
+### M2.3 — Commercial Foundation
+
+- Product catalogue model
+- Plan model
+- Add-on model
+- Entitlement model
+- Usage/limits model
+- Subscription lifecycle model
+- Payment-provider abstraction
+- Safe test-mode checkout foundation
+- Tenant provisioning contract
+
+### M2.4 — Customer Entry Boundary
+
+- Clear public/demo/customer routing
+- Existing control-plane pages preserved
+- Tenant context reused rather than duplicated
+- Backend authorization remains authoritative
+
+**M2 exit gate:** public experience and safe demo operate separately from production security execution, while consuming the same platform primitives for tenant, entitlement and product context.
 
 ## M3 — Asset Intelligence
 
@@ -232,7 +291,3 @@ No milestone is considered complete because code exists. Each milestone requires
 7. Auditability
 8. Rollback/recovery consideration
 9. Explicit exit-gate approval
-
-## Initial Recommendation
-
-Begin with **M0** and establish the architecture and repository skeleton before implementing active scanners or penetration-testing capabilities.
