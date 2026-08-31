@@ -1,0 +1,27 @@
+.site-shell > main {
+  display: block;
+  width: 100%;
+  min-height: 0;
+}
+
+.site-shell .site-nav {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-width: 0;
+  transform: none;
+  overflow: hidden;
+}
+
+.site-shell .hero,
+.site-shell .trust-strip,
+.site-shell .section,
+.site-shell .split-section,
+.site-shell .demo-section,
+.site-shell .trust-section,
+.site-shell .site-footer {
+  direction: ltr;
+  writing-mode: horizontal-tb;
+}
