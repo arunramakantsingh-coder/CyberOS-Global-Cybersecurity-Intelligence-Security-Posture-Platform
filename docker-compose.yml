@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cyberos
+      POSTGRES_USER: cyberos
+      POSTGRES_PASSWORD: cyberos_dev_only
+    ports:
+      - "5433:5432"
+    volumes:
+      - cyberos_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cyberos -d cyberos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./apps/api
+    environment:
+      DATABASE_URL: postgresql://cyberos:cyberos_dev_only@postgres:5432/cyberos
+      CYBEROS_ENV: development
+    ports:
+      - "8100:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build: ./workers/execution
+    environment:
+      DATABASE_URL: postgresql://cyberos:cyberos_dev_only@postgres:5432/cyberos
+      CYBEROS_ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  portal:
+    build: ./apps/portal
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8100
+    ports:
+      - "3100:3000"
+    depends_on:
+      - api
+
+volumes:
+  cyberos_pgdata:
