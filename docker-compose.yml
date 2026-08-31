@@ -9,6 +9,7 @@ services:
       - "5433:5432"
     volumes:
       - cyberos_pgdata:/var/lib/postgresql/data
+      - ./infra/docker/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cyberos -d cyberos"]
       interval: 5s
