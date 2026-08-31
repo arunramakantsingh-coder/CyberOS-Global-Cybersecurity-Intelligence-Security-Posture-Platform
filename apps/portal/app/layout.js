@@ -1,4 +1,5 @@
 import './styles.css';
+import './public-site.css';
 
 export const metadata = { title: 'CyberOS — Global Cybersecurity Intelligence', description: 'Cybersecurity intelligence and security posture platform' };
 
