@@ -7,8 +7,6 @@ const capabilities = [
   ['Threat Intelligence','Tenant-relevant threat correlation'],['Attack Surface','Internet exposure discovery'],['Vulnerabilities','CVE / KEV prioritization'],['Security Posture','Cloud · DC · hybrid posture'],['Web & API Security','Authorized application testing'],['Network & Hardening','Architecture and segmentation'],['Compliance','ISO · PCI DSS · DORA · SOC 2 · NIST'],['Cyber AI','Evidence-grounded analysis'],['Reports','Executive and assurance reporting']
 ];
 
-export const metadata = { title: 'CyberOS — Organization' };
-
 export default function OrganizationPage(){
  const [selected,setSelected]=useState(capabilities.map(x=>x[0]));
  const [saved,setSaved]=useState(false);
