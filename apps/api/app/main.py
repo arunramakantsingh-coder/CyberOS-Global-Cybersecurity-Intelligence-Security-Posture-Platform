@@ -7,24 +7,55 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from .threat_intelligence import router as threat_intelligence_router
 
-app = FastAPI(title="CyberOS Control Plane", version="0.3.0-m1.1")
+app = FastAPI(title="CyberOS Control Plane", version="0.3.0-m2.2")
 DB = os.environ.get("DATABASE_URL", "postgresql://cyberos:cyberos_dev_only@localhost:5433/cyberos")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3100"],
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "PATCH"],
     allow_headers=["*"],
 )
 app.include_router(threat_intelligence_router)
 
+MODULES = [
+    ("command-center", "Command Center"),
+    ("threat-intelligence", "Threat Intelligence"),
+    ("attack-surface", "Attack Surface"),
+    ("vulnerabilities", "Vulnerabilities"),
+    ("security-posture", "Security Posture"),
+    ("web-security", "Web & API Security"),
+    ("network-hardening", "Network & Hardening"),
+    ("compliance", "Compliance"),
+    ("ai-security", "Cyber AI"),
+    ("reports", "Reports"),
+]
+
+# Capabilities that can be requested by the control plane. Only the first two
+# execute in the synthetic worker today. Kali/customer-agent capabilities are
+# deliberately queued behind authorization + connector policy.
 SAFE_CAPABILITIES = {"demo.asset_inventory", "demo.finding_fixture"}
+AGENT_CAPABILITIES = {
+    "authorized.network.discovery",
+    "authorized.web.assessment",
+    "authorized.vulnerability.assessment",
+    "evidence.collection",
+}
 
 class JobRequest(BaseModel):
     capability: str = Field(min_length=1, max_length=100)
     target: str = Field(min_length=1, max_length=500)
     authorized: bool = False
+    connector_id: str | None = None
+    parameters: dict = Field(default_factory=dict)
+
+class ConnectorRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    connector_type: str = Field(default="customer_agent", max_length=50)
+    environment: str = Field(default="hybrid", max_length=40)
+    endpoint: str | None = Field(default=None, max_length=500)
+    capabilities: list[str] = Field(default_factory=list)
 
 
 def db_fetch(query, params=()):
@@ -79,7 +110,7 @@ def startup():
 
 @app.get("/")
 def root():
-    return {"product": "CyberOS", "service": "control-plane", "milestone": "M1.1", "status": "online"}
+    return {"product": "CyberOS", "service": "control-plane", "milestone": "M2.2", "status": "online"}
 
 @app.get("/health")
 def health():
@@ -95,11 +126,13 @@ def health():
 def platform():
     return {
         "name": "CyberOS",
-        "version": "0.3.0-m1.1",
-        "milestone": "M1.1 Platform Kernel",
-        "modules": ["Threat Intelligence", "Attack Surface", "Vulnerability", "Security Posture", "Web Security", "Network & Hardening", "Compliance", "AI", "Reporting"],
+        "version": "0.3.0-m2.2",
+        "milestone": "M2.2 Tenant Security Workspace",
+        "modules": [name for _, name in MODULES],
         "execution": "policy-controlled",
         "api_port": 8000,
+        "portal_port": 3100,
+        "network_execution": "customer-agent-only; authorization required",
     }
 
 @app.get("/api/v1/context")
@@ -114,6 +147,83 @@ def context():
         "isolation": "tenant-scoped",
     }
 
+@app.get("/api/v1/organization")
+def organization_workspace():
+    tenant_id, actor_id, auth_id = ensure_demo_control_plane()
+    tenant = db_fetch("SELECT id,name,slug,industry,region,subscription_tier,status FROM tenants WHERE id=%s", (tenant_id,))[0]
+    modules = db_fetch("SELECT module_key,enabled,configuration FROM tenant_modules WHERE tenant_id=%s ORDER BY module_key", (tenant_id,))
+    connectors = db_fetch("""
+        SELECT id,name,status,connector_type,environment,endpoint,last_seen,capabilities,authorization_id
+        FROM connectors WHERE tenant_id=%s ORDER BY name
+    """, (tenant_id,))
+    assets = db_fetch("SELECT id,name,asset_type,identifier,environment,criticality,exposure FROM assets WHERE tenant_id=%s ORDER BY name", (tenant_id,))
+    return {
+        "tenant": {"id": str(tenant[0]), "name": tenant[1], "slug": tenant[2], "industry": tenant[3], "region": tenant[4], "tier": tenant[5], "status": tenant[6]},
+        "identity": {"id": actor_id, "role": "security_operator"},
+        "authorization": {"id": auth_id, "status": "active", "mode": "synthetic-only"},
+        "modules": [{"key": r[0], "enabled": r[1], "configuration": r[2]} for r in modules],
+        "connectors": [{"id": str(r[0]), "name": r[1], "status": r[2], "type": r[3], "environment": r[4], "endpoint": r[5], "last_seen": r[6].isoformat() if r[6] else None, "capabilities": r[7], "authorization_id": str(r[8]) if r[8] else None} for r in connectors],
+        "assets": [{"id": str(r[0]), "name": r[1], "type": r[2], "identifier": r[3], "environment": r[4], "criticality": r[5], "exposure": r[6]} for r in assets],
+    }
+
+@app.get("/api/v1/modules")
+def module_catalog():
+    tenant_id, _, _ = ensure_demo_control_plane()
+    rows = db_fetch("SELECT module_key,enabled,configuration FROM tenant_modules WHERE tenant_id=%s", (tenant_id,))
+    enabled = {r[0]: {"enabled": r[1], "configuration": r[2]} for r in rows}
+    return [{"key": key, "name": name, **enabled.get(key, {"enabled": False, "configuration": {}})} for key, name in MODULES]
+
+@app.patch("/api/v1/modules/{module_key}")
+def set_module(module_key: str, enabled: bool = Query(...)):
+    if module_key not in {key for key, _ in MODULES}:
+        raise HTTPException(status_code=404, detail="Unknown module")
+    tenant_id, actor_id, _ = ensure_demo_control_plane()
+    with psycopg.connect(DB, connect_timeout=3) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO tenant_modules (tenant_id,module_key,enabled,updated_at)
+                VALUES (%s,%s,%s,now())
+                ON CONFLICT (tenant_id,module_key) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=now()
+            """, (tenant_id, module_key, enabled))
+            cur.execute("""
+                INSERT INTO audit_events (tenant_id,actor_id,event_type,resource_type,decision,metadata)
+                VALUES (%s,%s,'tenant.module.changed','tenant_module','allow',%s)
+            """, (tenant_id, actor_id, json.dumps({"module": module_key, "enabled": enabled})))
+            conn.commit()
+    return {"module": module_key, "enabled": enabled, "tenant_scoped": True}
+
+@app.get("/api/v1/connectors")
+def list_connectors():
+    tenant_id, _, _ = ensure_demo_control_plane()
+    rows = db_fetch("SELECT id,name,status,connector_type,environment,endpoint,last_seen,capabilities,authorization_id,metadata FROM connectors WHERE tenant_id=%s ORDER BY name", (tenant_id,))
+    return [{"id": str(r[0]), "name": r[1], "status": r[2], "type": r[3], "environment": r[4], "endpoint": r[5], "last_seen": r[6].isoformat() if r[6] else None, "capabilities": r[7], "authorization_id": str(r[8]) if r[8] else None, "metadata": r[9]} for r in rows]
+
+@app.post("/api/v1/connectors")
+def register_connector(req: ConnectorRequest):
+    tenant_id, actor_id, auth_id = ensure_demo_control_plane()
+    allowed = set(req.capabilities).issubset(AGENT_CAPABILITIES)
+    status = "pending_authorization" if req.capabilities and not allowed else "pending"
+    with psycopg.connect(DB, connect_timeout=3) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO connectors (tenant_id,name,status,connector_type,environment,endpoint,capabilities,authorization_id,metadata)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id,created_at
+            """, (tenant_id, req.name, status, req.connector_type, req.environment, req.endpoint, json.dumps(req.capabilities), auth_id, json.dumps({"registration_mode": "control-plane", "network_access": "agent-side-only"})))
+            connector_id, created_at = cur.fetchone()
+            cur.execute("""
+                INSERT INTO audit_events (tenant_id,actor_id,event_type,resource_type,resource_id,decision,metadata)
+                VALUES (%s,%s,'connector.registered','connector',%s,%s,%s)
+            """, (tenant_id, actor_id, "allow" if allowed else "review", json.dumps({"name": req.name, "capabilities": req.capabilities})))
+            conn.commit()
+    return {"id": str(connector_id), "name": req.name, "status": status, "authorization_id": auth_id, "created_at": created_at.isoformat(), "network_execution": "not enabled until connector is approved/online"}
+
+@app.get("/api/v1/assets")
+def assets():
+    tenant_id, _, _ = ensure_demo_control_plane()
+    rows = db_fetch("SELECT id,name,asset_type,identifier,environment,criticality,exposure,metadata FROM assets WHERE tenant_id=%s ORDER BY name", (tenant_id,))
+    return [{"id": str(r[0]), "name": r[1], "type": r[2], "identifier": r[3], "environment": r[4], "criticality": r[5], "exposure": r[6], "metadata": r[7]} for r in rows]
+
 @app.get("/api/v1/audit")
 def audit(limit: int = Query(default=25, ge=1, le=100)):
     tenant_id, _, _ = ensure_demo_control_plane()
@@ -122,15 +232,9 @@ def audit(limit: int = Query(default=25, ge=1, le=100)):
                ae.metadata, ae.created_at, i.display_name
         FROM audit_events ae
         LEFT JOIN identities i ON i.id=ae.actor_id AND i.tenant_id=ae.tenant_id
-        WHERE ae.tenant_id=%s
-        ORDER BY ae.created_at DESC
-        LIMIT %s
+        WHERE ae.tenant_id=%s ORDER BY ae.created_at DESC LIMIT %s
     """, (tenant_id, limit))
-    return [{
-        "id": str(r[0]), "event_type": r[1], "resource_type": r[2],
-        "resource_id": str(r[3]) if r[3] else None, "decision": r[4],
-        "metadata": r[5], "created_at": r[6].isoformat(), "actor": r[7]
-    } for r in rows]
+    return [{"id": str(r[0]), "event_type": r[1], "resource_type": r[2], "resource_id": str(r[3]) if r[3] else None, "decision": r[4], "metadata": r[5], "created_at": r[6].isoformat(), "actor": r[7]} for r in rows]
 
 @app.get("/api/v1/tenants/current")
 def current_tenant():
@@ -187,15 +291,9 @@ def create_demo_job(job: JobRequest):
     state = "queued" if allowed else "blocked"
     with psycopg.connect(DB, connect_timeout=3) as conn:
         with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO jobs (tenant_id,requested_by,authorization_id,capability,target,state,policy_reason,parameters)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id,created_at,updated_at
-            """, (tenant_id, actor_id, auth_id, job.capability, job.target, state, reason, json.dumps({"mode": "synthetic-only"})))
+            cur.execute("INSERT INTO jobs (tenant_id,requested_by,authorization_id,capability,target,state,policy_reason,parameters) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id,created_at,updated_at", (tenant_id, actor_id, auth_id, job.capability, job.target, state, reason, json.dumps({"mode": "synthetic-only", **job.parameters})))
             job_id, created_at, updated_at = cur.fetchone()
-            cur.execute("""
-                INSERT INTO audit_events (tenant_id,actor_id,event_type,resource_type,resource_id,decision,metadata)
-                VALUES (%s,%s,%s,'job',%s,%s,%s)
-            """, (tenant_id, actor_id, "job.requested", job_id, "allow" if allowed else "deny", json.dumps({"capability": job.capability, "target": job.target, "authorization_id": auth_id})))
+            cur.execute("INSERT INTO audit_events (tenant_id,actor_id,event_type,resource_type,resource_id,decision,metadata) VALUES (%s,%s,%s,'job',%s,%s,%s)", (tenant_id, actor_id, "job.requested", job_id, "allow" if allowed else "deny", json.dumps({"capability": job.capability, "target": job.target, "authorization_id": auth_id})))
             conn.commit()
     return {"id": str(job_id), "state": state, "policy_reason": reason, "capability": job.capability, "target": job.target, "created_at": created_at.isoformat(), "updated_at": updated_at.isoformat()}
 
@@ -203,6 +301,32 @@ def create_demo_job(job: JobRequest):
 def preview_job(job: JobRequest):
     if not job.authorized:
         return {"status": "blocked", "reason": "explicit authorization required", "target": job.target}
-    if job.capability not in SAFE_CAPABILITIES:
-        return {"status": "blocked", "reason": "capability is not enabled for M0.2 demo execution", "capability": job.capability}
+    if job.capability not in SAFE_CAPABILITIES and job.capability not in AGENT_CAPABILITIES:
+        return {"status": "blocked", "reason": "capability is not registered in CyberOS policy catalog", "capability": job.capability}
+    if job.capability in AGENT_CAPABILITIES:
+        return {"status": "connector_required", "reason": "customer-controlled connector must be approved and online before any network activity", "capability": job.capability, "target": job.target}
     return {"status": "policy_review_required", "capability": job.capability, "target": job.target}
+
+@app.post("/api/v1/assessments/request")
+def request_assessment(job: JobRequest):
+    tenant_id, actor_id, auth_id = ensure_demo_control_plane()
+    if not job.authorized:
+        raise HTTPException(status_code=403, detail="Explicit customer authorization is required")
+    if job.capability not in AGENT_CAPABILITIES:
+        raise HTTPException(status_code=400, detail="Assessment capability is not registered")
+    if not job.connector_id:
+        raise HTTPException(status_code=400, detail="Approved customer connector is required")
+    connector = db_fetch("SELECT id,status,authorization_id FROM connectors WHERE id=%s AND tenant_id=%s", (job.connector_id, tenant_id))
+    if not connector:
+        raise HTTPException(status_code=404, detail="Connector not found in current tenant")
+    if connector[0][1] != "online":
+        raise HTTPException(status_code=409, detail="Connector is not online")
+    if connector[0][2] and str(connector[0][2]) != auth_id:
+        raise HTTPException(status_code=403, detail="Connector authorization does not match current tenant authorization")
+    with psycopg.connect(DB, connect_timeout=3) as conn:
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO jobs (tenant_id,requested_by,authorization_id,capability,target,state,policy_reason,parameters) VALUES (%s,%s,%s,%s,%s,'queued',%s,%s) RETURNING id,created_at,updated_at", (tenant_id, actor_id, auth_id, job.capability, job.target, "customer-agent execution; awaiting worker capability enablement", json.dumps({"connector_id": job.connector_id, **job.parameters})))
+            job_id, created_at, updated_at = cur.fetchone()
+            cur.execute("INSERT INTO audit_events (tenant_id,actor_id,event_type,resource_type,resource_id,decision,metadata) VALUES (%s,%s,'assessment.requested','job',%s,'review',%s)", (tenant_id, actor_id, job_id, json.dumps({"capability": job.capability, "target": job.target, "connector_id": job.connector_id, "authorization_id": auth_id})))
+            conn.commit()
+    return {"id": str(job_id), "state": "queued", "mode": "customer-agent", "execution": "not yet enabled in worker", "created_at": created_at.isoformat(), "updated_at": updated_at.isoformat()}
