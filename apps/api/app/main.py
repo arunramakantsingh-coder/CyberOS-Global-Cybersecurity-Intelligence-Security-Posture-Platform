@@ -5,6 +5,7 @@ import psycopg
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from .threat_intelligence import router as threat_intelligence_router
 
 app = FastAPI(title="CyberOS Control Plane", version="0.3.0-m1.1")
 DB = os.environ.get("DATABASE_URL", "postgresql://cyberos:cyberos_dev_only@localhost:5433/cyberos")
@@ -16,6 +17,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+app.include_router(threat_intelligence_router)
 
 SAFE_CAPABILITIES = {"demo.asset_inventory", "demo.finding_fixture"}
 
