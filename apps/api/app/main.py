@@ -8,13 +8,15 @@ from pydantic import BaseModel, Field
 from .threat_intelligence import router as threat_intelligence_router
 from .tenant_workspace import router as tenant_workspace_router
 from .agent_gateway import router as agent_gateway_router
+from .customer_assessment import router as customer_assessment_router
 
-app = FastAPI(title="CyberOS Control Plane", version="0.3.0-m3")
+app = FastAPI(title="CyberOS Control Plane", version="0.3.1-m3")
 DB = os.environ.get("DATABASE_URL", "postgresql://cyberos:cyberos_dev_only@localhost:5433/cyberos")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3100"], allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH"], allow_headers=["*"])
 app.include_router(threat_intelligence_router)
 app.include_router(tenant_workspace_router)
 app.include_router(agent_gateway_router)
+app.include_router(customer_assessment_router)
 MODULES=[("command-center","Command Center"),("threat-intelligence","Threat Intelligence"),("attack-surface","Attack Surface"),("vulnerabilities","Vulnerabilities"),("security-posture","Security Posture"),("web-security","Web & API Security"),("network-hardening","Network & Hardening"),("compliance","Compliance"),("ai-security","Cyber AI"),("reports","Reports")]
 SAFE_CAPABILITIES={"demo.asset_inventory","demo.finding_fixture"}
 AGENT_CAPABILITIES={"authorized.network.discovery","authorized.web.assessment","authorized.vulnerability.assessment","evidence.collection"}
@@ -51,7 +53,7 @@ def health():
     except Exception: db="unavailable"
     return {"status":"healthy" if db=="healthy" else "degraded","database":db,"timestamp":datetime.now(timezone.utc).isoformat()}
 @app.get("/api/v1/platform")
-def platform(): return {"name":"CyberOS","version":"0.3.0-m3","milestone":"M3 Customer Security Workspace + Agent Gateway","modules":[name for _,name in MODULES],"execution":"policy-controlled","api_port":8000,"portal_port":3100,"network_execution":"customer-agent-only; authorization required"}
+def platform(): return {"name":"CyberOS","version":"0.3.1-m3","milestone":"M3 Customer Security Workspace + Agent Gateway + Assessment Reports","modules":[name for _,name in MODULES],"execution":"policy-controlled","api_port":8000,"portal_port":3100,"network_execution":"customer-agent-only; authorization required"}
 @app.get("/api/v1/context")
 def context():
     tenant_id,actor_id,auth_id=ensure_demo_control_plane(); tenant=db_fetch("SELECT id,name,slug,industry,region,subscription_tier,status,created_at FROM tenants WHERE id=%s",(tenant_id,))[0]; identity=db_fetch("SELECT id,email,display_name,role,status,created_at FROM identities WHERE id=%s AND tenant_id=%s",(actor_id,tenant_id))[0]
