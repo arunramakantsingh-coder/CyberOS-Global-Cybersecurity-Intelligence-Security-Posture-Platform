@@ -3,8 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-export const metadata = { title: 'CyberOS — Operations' };
-
 export default function OperationsPage(){
  const base=process.env.NEXT_PUBLIC_API_URL||'http://localhost:8100';
  const [jobs,setJobs]=useState([]),[audit,setAudit]=useState([]),[health,setHealth]=useState('Checking control plane…'),[message,setMessage]=useState('');
