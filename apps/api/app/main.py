@@ -6,12 +6,14 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from .threat_intelligence import router as threat_intelligence_router
+from .tenant_workspace import router as tenant_workspace_router
 
-app = FastAPI(title="CyberOS Control Plane", version="0.3.0-m2.2")
+app = FastAPI(title="CyberOS Control Plane", version="0.3.0-m2.3")
 DB = os.environ.get("DATABASE_URL", "postgresql://cyberos:cyberos_dev_only@localhost:5433/cyberos")
 
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3100"], allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH"], allow_headers=["*"])
 app.include_router(threat_intelligence_router)
+app.include_router(tenant_workspace_router)
 
 MODULES = [("command-center", "Command Center"),("threat-intelligence", "Threat Intelligence"),("attack-surface", "Attack Surface"),("vulnerabilities", "Vulnerabilities"),("security-posture", "Security Posture"),("web-security", "Web & API Security"),("network-hardening", "Network & Hardening"),("compliance", "Compliance"),("ai-security", "Cyber AI"),("reports", "Reports")]
 SAFE_CAPABILITIES = {"demo.asset_inventory", "demo.finding_fixture"}
@@ -65,7 +67,7 @@ def startup():
     except Exception as exc: print(f"CyberOS startup control-plane initialization deferred: {exc}")
 
 @app.get("/")
-def root(): return {"product":"CyberOS","service":"control-plane","milestone":"M2.2","status":"online"}
+def root(): return {"product":"CyberOS","service":"control-plane","milestone":"M2.3","status":"online"}
 
 @app.get("/health")
 def health():
@@ -76,7 +78,7 @@ def health():
     return {"status":"healthy" if db=="healthy" else "degraded","database":db,"timestamp":datetime.now(timezone.utc).isoformat()}
 
 @app.get("/api/v1/platform")
-def platform(): return {"name":"CyberOS","version":"0.3.0-m2.2","milestone":"M2.2 Tenant Security Workspace","modules":[name for _,name in MODULES],"execution":"policy-controlled","api_port":8000,"portal_port":3100,"network_execution":"customer-agent-only; authorization required"}
+def platform(): return {"name":"CyberOS","version":"0.3.0-m2.3","milestone":"M2.3 Customer Security Workspace","modules":[name for _,name in MODULES],"execution":"policy-controlled","api_port":8000,"portal_port":3100,"network_execution":"customer-agent-only; authorization required"}
 
 @app.get("/api/v1/context")
 def context():
